@@ -1,1 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Settings</title>
+  <style>
+    body { font-family: Arial; margin: 40px; }
+    nav a { margin-right: 15px; }
+    .field { margin-bottom: 10px; }
+    input { padding: 5px; }
+    button { padding: 8px 16px; background: blue; color: white; border: none; }
+  </style>
+</head>
+<body>
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="settings.html">Settings</a>
+  </nav>
+  <h1>Settings</h1>
+  <form id="settingsForm" onsubmit="saveSettings(event)">
+    <div class="field">
+      Name<br>
+      <input type="text" id="name">
+    </div>
+    <div class="field">
+      Email<br>
+      <input type="text" id="email">
+    </div>
+    <div class="field">
+      Password<br>
+      <input type="text" id="password">
+    </div>
+    <button type="submit">Save</button>
+  </form>
+  <p id="msg"></p>
 
+  <script>
+    function saveSettings(e) {
+      e.preventDefault();
+      var name = document.getElementById('name').value;
+      var email = document.getElementById('email').value;
+      var password = document.getElementById('password').value;
+      localStorage.setItem('settings', JSON.stringify({name: name, email: email, password: password}));
+      document.getElementById('msg').innerText = 'Saved!';
+    }
+  </script>
+</body>
+</html>
