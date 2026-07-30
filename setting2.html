@@ -1,0 +1,185 @@
+-Prompt
+**Build a settings form feature for this project: settings.html, settings.css, 
+settings.js, and validation.js. This replaces the version currently on the 
+round1-vague branch — build it fresh, don't look at that branch's code.
+
+Fields: Name, Email, Password.
+
+Constraints:
+- Name: required, trimmed, 2–50 characters.
+- Email: required, must match a standard email format (user@domain.tld).
+- Password: required, minimum 8 characters, must contain at least one digit. 
+  Never store the raw password value anywhere (not localStorage, not 
+  sessionStorage, not console.log).
+- Every input must have a real <label for="..."> tied to its id.
+- Every input must have aria-describedby pointing to its error/hint text.
+- On invalid submit: show an inline error message per invalid field, set 
+  aria-invalid="true" on that input, and move keyboard focus to the first 
+  invalid field. Do not save anything.
+- On valid submit: save name and email (not password) to localStorage under 
+  the key "settings", and show a success message in a role="status" region.
+- Validation logic must live in validation.js as pure functions with no DOM 
+  dependency, so it can be unit tested in isolation.
+
+Example behavior:
+- Submitting with an empty Name field shows "Name is required." under the 
+  Name input and focuses that input.
+- Submitting "user@domain" as email (no TLD) is rejected as invalid.
+- Submitting "short1" as password (7 chars) is rejected as too short.
+- Submitting valid values for all three fields saves {name, email} to 
+  localStorage and shows "Settings saved."
+
+Verification step: after writing the code, write tests.js (runnable with 
+`node tests.js`) covering at least 3 cases per field — empty, a boundary 
+case, and a valid case. Run it and show me the output. All tests must pass 
+before you consider this done. If any fail, fix the code and re-run**
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Settings</title>
+<style>
+  body { font-family: Arial, sans-serif; margin: 40px; color: #1a1a1a;background-color:antiquewhite; }
+  main { max-width: 420px; }
+  .field { margin-bottom: 16px; display: flex; flex-direction: column; }
+  label { font-weight: bold; margin-bottom: 4px; }
+  input { padding: 8px; font-size: 1rem; border: 1px solid #767676; border-radius: 4px; }
+  input:focus { outline: 3px solid #1a73e8; outline-offset: 1px; }
+  input[aria-invalid="true"] { border-color: #c0392b; }
+  .hint { font-size: 0.85rem; color: #555; }
+  .error { font-size: 0.85rem; color: #c0392b; min-height: 1.1em; }
+  button { padding: 10px 20px; background: #1a4d8f; color: white; border: none; border-radius: 4px; cursor: pointer; }
+  button:focus { outline: 3px solid #1a73e8; outline-offset: 2px; }
+  #form-status { font-weight: bold; color: #1e7e34; }
+</style>
+</head>
+<body>
+  <main>
+    <h1>Settings</h1>
+    <form id="settings-form" novalidate>
+      <div class="field">
+        <label for="name">Name</label>
+        <input type="text" id="name" name="name" aria-describedby="name-error" autocomplete="name">
+        <span id="name-error" class="error" role="alert"></span>
+      </div>
+
+      <div class="field">
+        <label for="email">Email</label>
+        <input type="email" id="email" name="email" aria-describedby="email-error" autocomplete="email">
+        <span id="email-error" class="error" role="alert"></span>
+      </div>
+
+      <div class="field">
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" aria-describedby="password-error password-hint" autocomplete="new-password">
+        <span id="password-hint" class="hint">At least 8 characters, including one number.</span>
+        <span id="password-error" class="error" role="alert"></span>
+      </div>
+
+      <button type="submit">Save</button>
+      <p id="form-status" role="status" aria-live="polite"></p>
+    </form>
+  </main>
+
+<script>
+  var Validation = (function () {
+    var EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    function validateName(value) {
+      var v = (value || "").trim();
+      if (v.length === 0) return { valid: false, message: "Name is required." };
+      if (v.length < 2 || v.length > 50) {
+        return { valid: false, message: "Name must be between 2 and 50 characters." };
+      }
+      return { valid: true, message: "" };
+    }
+
+    function validateEmail(value) {
+      var v = (value || "").trim();
+      if (v.length === 0) return { valid: false, message: "Email is required." };
+      if (!EMAIL_RE.test(v)) {
+        return { valid: false, message: "Enter a valid email address (e.g. name@example.com)." };
+      }
+      return { valid: true, message: "" };
+    }
+
+    function validatePassword(value) {
+      var v = value || "";
+      if (v.length === 0) return { valid: false, message: "Password is required." };
+      if (v.length < 8) return { valid: false, message: "Password must be at least 8 characters." };
+      if (!/\d/.test(v)) return { valid: false, message: "Password must contain at least one number." };
+      return { valid: true, message: "" };
+    }
+
+    function validateForm(fields) {
+      return {
+        name: validateName(fields.name),
+        email: validateEmail(fields.email),
+        password: validatePassword(fields.password)
+      };
+    }
+
+    return { validateName: validateName, validateEmail: validateEmail, validatePassword: validatePassword, validateForm: validateForm };
+  })();
+
+  (function () {
+    var form = document.getElementById("settings-form");
+    var status = document.getElementById("form-status");
+
+    var fields = {
+      name: { input: document.getElementById("name"), error: document.getElementById("name-error") },
+      email: { input: document.getElementById("email"), error: document.getElementById("email-error") },
+      password: { input: document.getElementById("password"), error: document.getElementById("password-error") }
+    };
+
+    function clearErrors() {
+      Object.keys(fields).forEach(function (key) {
+        fields[key].error.textContent = "";
+        fields[key].input.removeAttribute("aria-invalid");
+      });
+      status.textContent = "";
+    }
+
+    function showError(key, message) {
+      fields[key].error.textContent = message;
+      fields[key].input.setAttribute("aria-invalid", "true");
+    }
+
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+      clearErrors();
+
+      var values = {
+        name: fields.name.input.value,
+        email: fields.email.input.value,
+        password: fields.password.input.value
+      };
+
+      var results = Validation.validateForm(values);
+      var firstInvalidKey = null;
+
+      Object.keys(results).forEach(function (key) {
+        if (!results[key].valid) {
+          showError(key, results[key].message);
+          if (!firstInvalidKey) firstInvalidKey = key;
+        }
+      });
+
+      if (firstInvalidKey) {
+        fields[firstInvalidKey].input.focus();
+        return;
+      }
+
+      localStorage.setItem(
+        "settings",
+        JSON.stringify({ name: values.name.trim(), email: values.email.trim() })
+      );
+      status.textContent = "Settings saved.";
+    });
+  })();
+</script>
+</body>
+</html>
+
+
+they do.
